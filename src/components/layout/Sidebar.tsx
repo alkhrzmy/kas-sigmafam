@@ -10,6 +10,7 @@ const navItems = [
     { href: '/pemasukan', label: 'Pemasukan', icon: '💰' },
     { href: '/pengeluaran', label: 'Pengeluaran', icon: '💸' },
     { href: '/iuran', label: 'Iuran Bulanan', icon: '📅' },
+    { href: '/rekening', label: 'Rekening', icon: '🏦' },
     { href: '/penghuni', label: 'Penghuni', icon: '👥' },
     { href: '/kategori', label: 'Kategori', icon: '🏷️' },
 ];

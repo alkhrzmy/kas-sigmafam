@@ -50,6 +50,7 @@ export interface Transaction {
     amount: number;
     resident_id: string | null;
     category_id: string | null;
+    account_id: string | null;
     description: string | null;
     receipt_url: string | null;
     transaction_date: string;
@@ -69,13 +70,26 @@ export interface MonthlyBill {
     created_at: string;
 }
 
+export interface Account {
+    id: string;
+    name: string;
+    type: 'ewallet' | 'bank';
+    provider: string;
+    account_number: string | null;
+    balance: number;
+    icon: string | null;
+    created_at: string;
+}
+
 // Extended types with relations
 export interface TransactionWithRelations extends Transaction {
     residents?: Resident | null;
     categories?: Category | null;
+    accounts?: Account | null;
 }
 
 export interface MonthlyBillWithRelations extends MonthlyBill {
     residents?: Resident;
     categories?: Category;
 }
+
