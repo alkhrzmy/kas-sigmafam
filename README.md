@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kas Kontrakan Sigma 💵
 
-## Getting Started
+Aplikasi pencatatan kas untuk kontrakan dengan 8 penghuni. Built with Next.js + Supabase.
 
-First, run the development server:
+## Features
+
+- 📊 **Dashboard** - Lihat saldo kas, pemasukan, pengeluaran
+- 💰 **Pemasukan** - Catat uang masuk dari penghuni
+- 💸 **Pengeluaran** - Catat uang keluar dengan upload bukti foto
+- 📅 **Iuran Bulanan** - Tracking pembayaran iuran per bulan
+- 👥 **Penghuni** - Kelola data penghuni (AC/Non-AC, lantai atas/bawah)
+- 🏷️ **Kategori** - Kelola kategori transaksi (listrik, air, keamanan, dll)
+
+## Setup
+
+### 1. Supabase Setup
+
+1. Buat project baru di [supabase.com](https://supabase.com)
+2. Buka SQL Editor dan jalankan `supabase-schema.sql`
+3. Buat Storage bucket:
+   - Buka Storage > Create new bucket
+   - Name: `receipts`
+   - Public: ✅ Yes
+
+### 2. Environment Variables
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Edit `.env.local` dengan credentials dari Supabase dashboard (Settings > API):
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Run Development Server
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev
+```
 
-## Learn More
+Buka [http://localhost:3000](http://localhost:3000)
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy to Vercel
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Push ke GitHub
+2. Connect repo ke [vercel.com](https://vercel.com)
+3. Tambah environment variables di Vercel dashboard
+4. Deploy! 🚀
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tech Stack
 
-## Deploy on Vercel
+- **Next.js 14** - React framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Supabase** - Database + Storage
+- **Vercel** - Hosting
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Penghuni Default
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Nama | Iuran/bulan | Kamar | Lantai |
+|------|-------------|-------|--------|
+| Kemas | Rp 200.000 | AC | Atas |
+| Dapa | Rp 200.000 | AC | Bawah |
+| Irvan | Rp 100.000 | Non-AC | Atas |
+| Aji | Rp 100.000 | Non-AC | Atas |
+| Jim | Rp 100.000 | Non-AC | Atas |
+| Ferdy | Rp 100.000 | Non-AC | Atas |
+| Randa | Rp 100.000 | Non-AC | Bawah |
+| Virdio | Rp 100.000 | Non-AC | Bawah |
+
+---
+
+Made with ❤️ for Kontrakan Sigma
