@@ -60,8 +60,7 @@ export default function BroadcastPage() {
             const incomeItems = incomeTransactions.map(t => {
                 const name = t.residents?.name || 'Lainnya';
                 const amount = formatRupiahShort(t.amount);
-                const desc = t.description ? ` (${t.description})` : '';
-                return `${name} ${amount}${desc}`;
+                return `${name} ${amount}`;
             });
             message += incomeItems.join(' + ') + '\n';
             message += `Total: ${formatRupiah(totalIncome)}\n\n`;
@@ -73,8 +72,7 @@ export default function BroadcastPage() {
             const expenseItems = expenseTransactions.map(t => {
                 const category = t.categories?.name || 'Lainnya';
                 const amount = formatRupiahShort(t.amount);
-                const desc = t.description ? ` - ${t.description}` : '';
-                return `${amount} (${category}${desc})`;
+                return `${amount} (${category})`;
             });
             message += expenseItems.join(' + ') + '\n';
             message += `Total: ${formatRupiah(totalExpense)}\n\n`;
