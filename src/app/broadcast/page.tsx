@@ -6,11 +6,13 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
+import { useCategories } from '@/hooks/useCategories';
 import { formatRupiah, getMonthName, getCurrentYearMonth } from '@/lib/utils';
 
 export default function BroadcastPage() {
     const { transactions } = useTransactions();
     const { getTotalBalance } = useAccounts();
+    const { categories } = useCategories();
     const [copied, setCopied] = useState(false);
 
     // Month/Year filter
@@ -76,6 +78,33 @@ export default function BroadcastPage() {
             });
             message += expenseItems.join(' + ') + '\n';
             message += `Total: ${formatRupiah(totalExpense)}\n\n`;
+        }
+
+        // Iuran breakdown section
+        const expenseCategories = categories.filter(c => c.type === 'expense');
+        const listrikCategories = expenseCategories.filter(c =>
+            c.name.toLowerCase().includes('listrik')
+        );
+        const otherCategories = expenseCategories.filter(c =>
+            !c.name.toLowerCase().includes('listrik')
+        );
+
+        if (listrikCategories.length > 0) {
+            message += `*Iuran Listrik:*\n`;
+            listrikCategories.forEach((cat, index) => {
+                const perPerson = cat.default_per_person ? formatRupiahShort(cat.default_per_person) + '/org' : '-';
+                message += `${index + 1}. ${cat.name} ${perPerson}\n`;
+            });
+            message += '\n';
+        }
+
+        if (otherCategories.length > 0) {
+            message += `*Iuran Lain-lain:*\n`;
+            otherCategories.forEach((cat, index) => {
+                const perPerson = cat.default_per_person ? formatRupiahShort(cat.default_per_person) + '/org' : '-';
+                message += `${index + 1}. ${cat.name} ${perPerson}\n`;
+            });
+            message += '\n';
         }
 
         // Summary
