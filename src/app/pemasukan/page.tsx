@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Card, { CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useResidents } from '@/hooks/useResidents';
-import { formatRupiah, formatDate } from '@/lib/utils';
+import { formatRupiah, formatDate, getMonthName, getCurrentYearMonth } from '@/lib/utils';
 import { TransactionWithRelations } from '@/lib/types';
 
 export default function PemasukanPage() {
@@ -18,6 +18,21 @@ export default function PemasukanPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Month/Year filter
+    const currentDate = getCurrentYearMonth();
+    const [selectedYear, setSelectedYear] = useState(currentDate.year.toString());
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.month.toString());
+
+    const years = Array.from({ length: 3 }, (_, i) => ({
+        value: (currentDate.year - i).toString(),
+        label: (currentDate.year - i).toString(),
+    }));
+
+    const months = Array.from({ length: 12 }, (_, i) => ({
+        value: (i + 1).toString(),
+        label: getMonthName(i + 1),
+    }));
+
     const [form, setForm] = useState({
         resident_id: '',
         amount: '',
@@ -25,7 +40,19 @@ export default function PemasukanPage() {
         transaction_date: new Date().toISOString().split('T')[0],
     });
 
-    const incomeTransactions = transactions.filter((t) => t.type === 'income');
+    // Filter transactions by month/year
+    const incomeTransactions = useMemo(() => {
+        return transactions.filter((t) => {
+            if (t.type !== 'income') return false;
+            const date = new Date(t.transaction_date);
+            return (
+                date.getFullYear() === parseInt(selectedYear) &&
+                date.getMonth() + 1 === parseInt(selectedMonth)
+            );
+        });
+    }, [transactions, selectedYear, selectedMonth]);
+
+    const monthlyTotal = incomeTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -115,19 +142,46 @@ export default function PemasukanPage() {
                 </Button>
             </div>
 
+            {/* Month/Year Filter */}
+            <Card>
+                <div className="flex flex-wrap gap-4 items-end">
+                    <div className="w-32">
+                        <Select
+                            id="month"
+                            label="Bulan"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            options={months}
+                        />
+                    </div>
+                    <div className="w-32">
+                        <Select
+                            id="year"
+                            label="Tahun"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            options={years}
+                        />
+                    </div>
+                    <div className="ml-auto text-right">
+                        <div className="text-sm text-muted">Total Bulan Ini</div>
+                        <div className="text-xl font-bold text-success">{formatRupiah(monthlyTotal)}</div>
+                    </div>
+                </div>
+            </Card>
+
             {/* Table */}
             <Card>
                 <CardHeader
-                    title="Riwayat Pemasukan"
+                    title={`Pemasukan ${getMonthName(parseInt(selectedMonth))} ${selectedYear}`}
                     icon="💰"
-                    subtitle={`Total: ${formatRupiah(incomeTransactions.reduce((sum, t) => sum + t.amount, 0))}`}
                 />
                 <Table
                     columns={columns}
                     data={incomeTransactions}
                     keyExtractor={(item) => item.id}
                     isLoading={isLoading}
-                    emptyMessage="Belum ada pemasukan"
+                    emptyMessage="Belum ada pemasukan bulan ini"
                 />
             </Card>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Card, { CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
@@ -9,7 +9,7 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategories } from '@/hooks/useCategories';
-import { formatRupiah, formatDate } from '@/lib/utils';
+import { formatRupiah, formatDate, getMonthName, getCurrentYearMonth } from '@/lib/utils';
 import { TransactionWithRelations } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
@@ -21,6 +21,21 @@ export default function PengeluaranPage() {
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [viewImage, setViewImage] = useState<string | null>(null);
 
+    // Month/Year filter
+    const currentDate = getCurrentYearMonth();
+    const [selectedYear, setSelectedYear] = useState(currentDate.year.toString());
+    const [selectedMonth, setSelectedMonth] = useState(currentDate.month.toString());
+
+    const years = Array.from({ length: 3 }, (_, i) => ({
+        value: (currentDate.year - i).toString(),
+        label: (currentDate.year - i).toString(),
+    }));
+
+    const months = Array.from({ length: 12 }, (_, i) => ({
+        value: (i + 1).toString(),
+        label: getMonthName(i + 1),
+    }));
+
     const [form, setForm] = useState({
         category_id: '',
         amount: '',
@@ -29,7 +44,20 @@ export default function PengeluaranPage() {
     });
 
     const expenseCategories = categories.filter((c) => c.type === 'expense');
-    const expenseTransactions = transactions.filter((t) => t.type === 'expense');
+
+    // Filter transactions by month/year
+    const expenseTransactions = useMemo(() => {
+        return transactions.filter((t) => {
+            if (t.type !== 'expense') return false;
+            const date = new Date(t.transaction_date);
+            return (
+                date.getFullYear() === parseInt(selectedYear) &&
+                date.getMonth() + 1 === parseInt(selectedMonth)
+            );
+        });
+    }, [transactions, selectedYear, selectedMonth]);
+
+    const monthlyTotal = expenseTransactions.reduce((sum, t) => sum + t.amount, 0);
 
     const uploadImage = async (file: File): Promise<string | null> => {
         const fileExt = file.name.split('.').pop();
@@ -163,19 +191,46 @@ export default function PengeluaranPage() {
                 </Button>
             </div>
 
+            {/* Month/Year Filter */}
+            <Card>
+                <div className="flex flex-wrap gap-4 items-end">
+                    <div className="w-32">
+                        <Select
+                            id="month"
+                            label="Bulan"
+                            value={selectedMonth}
+                            onChange={(e) => setSelectedMonth(e.target.value)}
+                            options={months}
+                        />
+                    </div>
+                    <div className="w-32">
+                        <Select
+                            id="year"
+                            label="Tahun"
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            options={years}
+                        />
+                    </div>
+                    <div className="ml-auto text-right">
+                        <div className="text-sm text-muted">Total Bulan Ini</div>
+                        <div className="text-xl font-bold text-danger">{formatRupiah(monthlyTotal)}</div>
+                    </div>
+                </div>
+            </Card>
+
             {/* Table */}
             <Card>
                 <CardHeader
-                    title="Riwayat Pengeluaran"
+                    title={`Pengeluaran ${getMonthName(parseInt(selectedMonth))} ${selectedYear}`}
                     icon="💸"
-                    subtitle={`Total: ${formatRupiah(expenseTransactions.reduce((sum, t) => sum + t.amount, 0))}`}
                 />
                 <Table
                     columns={columns}
                     data={expenseTransactions}
                     keyExtractor={(item) => item.id}
                     isLoading={isLoading}
-                    emptyMessage="Belum ada pengeluaran"
+                    emptyMessage="Belum ada pengeluaran bulan ini"
                 />
             </Card>
 

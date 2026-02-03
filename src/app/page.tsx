@@ -1,16 +1,54 @@
 'use client';
 
+import { useState, useMemo } from 'react';
 import Card, { CardHeader } from '@/components/ui/Card';
+import Select from '@/components/ui/Select';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useAccounts } from '@/hooks/useAccounts';
-import { formatRupiah, formatDate } from '@/lib/utils';
+import { formatRupiah, formatDate, getMonthName, getCurrentYearMonth } from '@/lib/utils';
 
 export default function Dashboard() {
-  const { transactions, isLoading: txLoading, getBalance } = useTransactions();
+  const { transactions, isLoading: txLoading } = useTransactions();
   const { accounts, isLoading: accLoading, getTotalBalance } = useAccounts();
-  const { income, expense, balance } = getBalance();
-  const recentTransactions = transactions.slice(0, 5);
   const totalAccountBalance = getTotalBalance();
+
+  // Month/Year filter
+  const currentDate = getCurrentYearMonth();
+  const [selectedYear, setSelectedYear] = useState(currentDate.year.toString());
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.month.toString());
+
+  const years = Array.from({ length: 3 }, (_, i) => ({
+    value: (currentDate.year - i).toString(),
+    label: (currentDate.year - i).toString(),
+  }));
+
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: (i + 1).toString(),
+    label: getMonthName(i + 1),
+  }));
+
+  // Filter transactions by month/year
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const date = new Date(t.transaction_date);
+      return (
+        date.getFullYear() === parseInt(selectedYear) &&
+        date.getMonth() + 1 === parseInt(selectedMonth)
+      );
+    });
+  }, [transactions, selectedYear, selectedMonth]);
+
+  const monthlyIncome = filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyExpense = filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const monthlyBalance = monthlyIncome - monthlyExpense;
+
+  const recentTransactions = filteredTransactions.slice(0, 5);
 
   const isLoading = txLoading || accLoading;
 
@@ -33,29 +71,64 @@ export default function Dashboard() {
         <p className="text-muted mt-1">Ringkasan kas kontrakan</p>
       </div>
 
+      {/* Month/Year Filter */}
+      <Card>
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="w-32">
+            <Select
+              id="month"
+              label="Bulan"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              options={months}
+            />
+          </div>
+          <div className="w-32">
+            <Select
+              id="year"
+              label="Tahun"
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              options={years}
+            />
+          </div>
+        </div>
+      </Card>
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Balance Card */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Total Saldo Card */}
         <Card className="bg-gradient-to-br from-blue-600 to-purple-600 border-0">
-          <div className="text-white/80 text-sm font-medium">Saldo Kas</div>
-          <div className="text-3xl font-bold text-white mt-2">
+          <div className="text-white/80 text-sm font-medium">Total Saldo Kas</div>
+          <div className="text-2xl font-bold text-white mt-2">
             {formatRupiah(totalAccountBalance)}
           </div>
-          <div className="text-white/60 text-sm mt-2">
-            {totalAccountBalance >= 0 ? '✅ Surplus' : '⚠️ Defisit'}
+          <div className="text-white/60 text-xs mt-1">
+            Saldo semua rekening
+          </div>
+        </Card>
+
+        {/* Monthly Balance */}
+        <Card hover>
+          <div className="text-muted text-sm">Saldo Bulan Ini</div>
+          <div className={`text-xl font-bold mt-1 ${monthlyBalance >= 0 ? 'text-success' : 'text-danger'}`}>
+            {monthlyBalance >= 0 ? '+' : ''}{formatRupiah(monthlyBalance)}
+          </div>
+          <div className="text-xs text-muted mt-1">
+            {getMonthName(parseInt(selectedMonth))} {selectedYear}
           </div>
         </Card>
 
         {/* Income Card */}
         <Card hover>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-success-bg flex items-center justify-center text-2xl">
+            <div className="w-10 h-10 rounded-xl bg-success-bg flex items-center justify-center text-xl">
               💰
             </div>
             <div>
-              <div className="text-muted text-sm">Total Pemasukan</div>
-              <div className="text-xl font-bold text-success">
-                {formatRupiah(income)}
+              <div className="text-muted text-xs">Pemasukan</div>
+              <div className="text-lg font-bold text-success">
+                {formatRupiah(monthlyIncome)}
               </div>
             </div>
           </div>
@@ -64,13 +137,13 @@ export default function Dashboard() {
         {/* Expense Card */}
         <Card hover>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-danger-bg flex items-center justify-center text-2xl">
+            <div className="w-10 h-10 rounded-xl bg-danger-bg flex items-center justify-center text-xl">
               💸
             </div>
             <div>
-              <div className="text-muted text-sm">Total Pengeluaran</div>
-              <div className="text-xl font-bold text-danger">
-                {formatRupiah(expense)}
+              <div className="text-muted text-xs">Pengeluaran</div>
+              <div className="text-lg font-bold text-danger">
+                {formatRupiah(monthlyExpense)}
               </div>
             </div>
           </div>
@@ -157,11 +230,14 @@ export default function Dashboard() {
 
       {/* Recent Transactions */}
       <Card>
-        <CardHeader title="Transaksi Terakhir" icon="📋" />
+        <CardHeader
+          title={`Transaksi ${getMonthName(parseInt(selectedMonth))} ${selectedYear}`}
+          icon="📋"
+        />
 
         {recentTransactions.length === 0 ? (
           <div className="text-center text-muted py-8">
-            Belum ada transaksi
+            Belum ada transaksi bulan ini
           </div>
         ) : (
           <div className="space-y-3">
