@@ -52,11 +52,11 @@ export default function BroadcastPage() {
         const appUrl = typeof window !== 'undefined' ? window.location.origin : 'https://kas-sigmafam.vercel.app';
 
         let message = `${appUrl}\n\n`;
-        message += `📅 *Iuran ${monthName} ${selectedYear}*\n\n`;
+        message += `*Iuran ${monthName} ${selectedYear}*\n\n`;
 
         // Income section
         if (incomeTransactions.length > 0) {
-            message += `💰 *Uang Diterima:*\n`;
+            message += `*Uang Diterima:*\n`;
             const incomeItems = incomeTransactions.map(t => {
                 const name = t.residents?.name || 'Lainnya';
                 const amount = formatRupiahShort(t.amount);
@@ -69,7 +69,7 @@ export default function BroadcastPage() {
 
         // Expense section
         if (expenseTransactions.length > 0) {
-            message += `💸 *Uang Keluar:*\n`;
+            message += `*Uang Keluar:*\n`;
             const expenseItems = expenseTransactions.map(t => {
                 const category = t.categories?.name || 'Lainnya';
                 const amount = formatRupiahShort(t.amount);
@@ -81,18 +81,12 @@ export default function BroadcastPage() {
         }
 
         // Summary
-        message += `📊 *Ringkasan ${monthName}:*\n`;
+        message += `*Ringkasan ${monthName}:*\n`;
         message += `Pemasukan: ${formatRupiah(totalIncome)}\n`;
         message += `Pengeluaran: ${formatRupiah(totalExpense)}\n`;
         message += `Selisih: ${totalIncome - totalExpense >= 0 ? '+' : ''}${formatRupiah(totalIncome - totalExpense)}\n\n`;
 
-        message += `💵 *Saldo Kas Saat Ini: ${formatRupiah(saldo)}*\n\n`;
-
-        message += `Info rekening:\n`;
-        message += `Dana/Gopay/Spay: 087860811076\n`;
-        message += `BCA Digital: 001108786076\n`;
-        message += `BSI: 7316577223\n`;
-        message += `Bank Jago: 105428293091`;
+        message += `*Saldo Kas Saat Ini: ${formatRupiah(saldo)}*`;
 
         return message;
     };
