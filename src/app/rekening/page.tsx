@@ -56,6 +56,7 @@ export default function RekeningPage() {
             setNote('');
         } catch (error) {
             console.error('Error updating balance:', error);
+            alert('Gagal update saldo. Pastikan tabel balance_history sudah dibuat di Supabase.');
         } finally {
             setIsSubmitting(false);
         }
@@ -75,7 +76,7 @@ export default function RekeningPage() {
             setNewBalance(entry.old_balance.toString());
         } catch (error) {
             console.error('Error undoing:', error);
-            alert('Gagal undo. Hanya entry terakhir yang bisa di-undo.');
+            alert('Gagal undo: ' + (error instanceof Error ? error.message : 'Terjadi kesalahan'));
         }
     };
 

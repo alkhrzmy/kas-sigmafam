@@ -9,12 +9,14 @@ import Modal from '@/components/ui/Modal';
 import Table from '@/components/ui/Table';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useResidents } from '@/hooks/useResidents';
+import { useCategories } from '@/hooks/useCategories';
 import { formatRupiah, formatDate, getMonthName, getCurrentYearMonth } from '@/lib/utils';
 import { TransactionWithRelations } from '@/lib/types';
 
 export default function PemasukanPage() {
     const { transactions, addTransaction, deleteTransaction, isLoading } = useTransactions();
     const { residents } = useResidents();
+    const { categories } = useCategories();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,12 +35,19 @@ export default function PemasukanPage() {
         label: getMonthName(i + 1),
     }));
 
+    const incomeCategories = categories.filter((c) => c.type === 'income');
+
     const [form, setForm] = useState({
+        category_id: '',
         resident_id: '',
         amount: '',
         description: '',
         transaction_date: new Date().toISOString().split('T')[0],
     });
+
+    // Check if selected category needs resident (iuran bulanan)
+    const selectedCategory = incomeCategories.find(c => c.id === form.category_id);
+    const needsResident = selectedCategory?.name?.toLowerCase().includes('iuran');
 
     // Filter transactions by month/year
     const incomeTransactions = useMemo(() => {
@@ -63,11 +72,13 @@ export default function PemasukanPage() {
             await addTransaction({
                 type: 'income',
                 amount: parseInt(form.amount),
-                resident_id: form.resident_id || null,
+                category_id: form.category_id || null,
+                resident_id: needsResident ? (form.resident_id || null) : null,
                 description: form.description || null,
                 transaction_date: form.transaction_date,
             });
             setForm({
+                category_id: '',
                 resident_id: '',
                 amount: '',
                 description: '',
@@ -95,6 +106,11 @@ export default function PemasukanPage() {
             key: 'transaction_date',
             header: 'Tanggal',
             render: (item: TransactionWithRelations) => formatDate(item.transaction_date),
+        },
+        {
+            key: 'category',
+            header: 'Kategori',
+            render: (item: TransactionWithRelations) => item.categories?.name || '-',
         },
         {
             key: 'resident',
@@ -193,12 +209,21 @@ export default function PemasukanPage() {
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <Select
-                        id="resident"
-                        label="Dari Penghuni"
-                        value={form.resident_id}
-                        onChange={(e) => setForm({ ...form, resident_id: e.target.value })}
-                        options={residents.map((r) => ({ value: r.id, label: r.name }))}
+                        id="category"
+                        label="Kategori Pemasukan"
+                        value={form.category_id}
+                        onChange={(e) => setForm({ ...form, category_id: e.target.value, resident_id: '' })}
+                        options={incomeCategories.map((c) => ({ value: c.id, label: c.name }))}
                     />
+                    {needsResident && (
+                        <Select
+                            id="resident"
+                            label="Dari Penghuni"
+                            value={form.resident_id}
+                            onChange={(e) => setForm({ ...form, resident_id: e.target.value })}
+                            options={residents.map((r) => ({ value: r.id, label: r.name }))}
+                        />
+                    )}
                     <Input
                         id="amount"
                         label="Jumlah (Rp)"
