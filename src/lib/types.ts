@@ -93,3 +93,12 @@ export interface MonthlyBillWithRelations extends MonthlyBill {
     categories?: Category;
 }
 
+export interface BalanceHistory {
+    id: string;
+    account_id: string;
+    old_balance: number;
+    new_balance: number;
+    note: string | null;
+    created_at: string;
+}
+

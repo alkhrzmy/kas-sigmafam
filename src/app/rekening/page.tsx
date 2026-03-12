@@ -1,29 +1,44 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card, { CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import { useAccounts } from '@/hooks/useAccounts';
-import { formatRupiah } from '@/lib/utils';
-import { Account } from '@/lib/types';
+import { formatRupiah, formatDate } from '@/lib/utils';
+import { Account, BalanceHistory } from '@/lib/types';
 
 export default function RekeningPage() {
-    const { accounts, updateBalance, isLoading } = useAccounts();
+    const { accounts, updateBalance, fetchHistory, undoLastChange, isLoading } = useAccounts();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAccount, setEditingAccount] = useState<Account | null>(null);
     const [newBalance, setNewBalance] = useState('');
+    const [note, setNote] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [history, setHistory] = useState<BalanceHistory[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     const ewallets = accounts.filter(a => a.type === 'ewallet');
     const banks = accounts.filter(a => a.type === 'bank');
     const totalBalance = accounts.reduce((sum, a) => sum + a.balance, 0);
 
-    const openEditModal = (account: Account) => {
+    const openEditModal = async (account: Account) => {
         setEditingAccount(account);
         setNewBalance(account.balance.toString());
+        setNote('');
         setIsModalOpen(true);
+        // Load history
+        setLoadingHistory(true);
+        try {
+            const h = await fetchHistory(account.id);
+            setHistory(h);
+        } catch (err) {
+            console.error('Error fetching history:', err);
+            setHistory([]);
+        } finally {
+            setLoadingHistory(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -32,12 +47,35 @@ export default function RekeningPage() {
 
         setIsSubmitting(true);
         try {
-            await updateBalance(editingAccount.id, parseInt(newBalance));
-            setIsModalOpen(false);
+            await updateBalance(editingAccount.id, parseInt(newBalance), note || undefined);
+            // Refresh history
+            const h = await fetchHistory(editingAccount.id);
+            setHistory(h);
+            // Update editing account with new balance
+            setEditingAccount(prev => prev ? { ...prev, balance: parseInt(newBalance) } : null);
+            setNote('');
         } catch (error) {
             console.error('Error updating balance:', error);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    const handleUndo = async (entry: BalanceHistory) => {
+        if (!editingAccount) return;
+        if (!confirm(`Undo perubahan ini?\nKembali ke saldo: ${formatRupiah(entry.old_balance)}`)) return;
+
+        try {
+            await undoLastChange(editingAccount.id);
+            // Refresh history
+            const h = await fetchHistory(editingAccount.id);
+            setHistory(h);
+            // Update editing account
+            setEditingAccount(prev => prev ? { ...prev, balance: entry.old_balance } : null);
+            setNewBalance(entry.old_balance.toString());
+        } catch (error) {
+            console.error('Error undoing:', error);
+            alert('Gagal undo. Hanya entry terakhir yang bisa di-undo.');
         }
     };
 
@@ -66,6 +104,17 @@ export default function RekeningPage() {
             </div>
         </div>
     );
+
+    const formatTime = (dateStr: string) => {
+        const d = new Date(dateStr);
+        return d.toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -147,45 +196,101 @@ export default function RekeningPage() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={`Update Saldo ${editingAccount?.name || ''}`}
+                size="lg"
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-6">
+                    {/* Account Info */}
                     <div className="flex items-center gap-3 p-4 bg-background rounded-lg">
                         <span className="text-2xl">{editingAccount?.icon}</span>
                         <div>
                             <div className="font-medium">{editingAccount?.name}</div>
                             <div className="text-sm text-muted">{editingAccount?.account_number}</div>
                         </div>
+                        <div className="ml-auto">
+                            <div className="text-sm text-muted">Saldo saat ini</div>
+                            <div className="text-lg font-bold text-success">
+                                {formatRupiah(editingAccount?.balance || 0)}
+                            </div>
+                        </div>
                     </div>
-                    <Input
-                        id="balance"
-                        label="Saldo Baru (Rp)"
-                        type="number"
-                        value={newBalance}
-                        onChange={(e) => setNewBalance(e.target.value)}
-                        placeholder="0"
-                        required
-                    />
-                    <p className="text-xs text-muted">
-                        Masukkan saldo aktual saat ini di rekening/wallet ini
-                    </p>
-                    <div className="flex gap-3 pt-4">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setIsModalOpen(false)}
-                            className="flex-1"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="flex-1"
-                        >
-                            {isSubmitting ? 'Menyimpan...' : 'Simpan'}
-                        </Button>
+
+                    {/* Update Form */}
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <Input
+                            id="balance"
+                            label="Saldo Baru (Rp)"
+                            type="number"
+                            value={newBalance}
+                            onChange={(e) => setNewBalance(e.target.value)}
+                            placeholder="0"
+                            required
+                        />
+                        <Input
+                            id="note"
+                            label="Catatan (opsional)"
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Contoh: Update setelah cek mutasi"
+                        />
+                        <div className="flex gap-3">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setIsModalOpen(false)}
+                                className="flex-1"
+                            >
+                                Tutup
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="flex-1"
+                            >
+                                {isSubmitting ? 'Menyimpan...' : 'Update Saldo'}
+                            </Button>
+                        </div>
+                    </form>
+
+                    {/* History */}
+                    <div>
+                        <h3 className="font-medium text-sm text-muted mb-3">Riwayat Perubahan Saldo</h3>
+                        {loadingHistory ? (
+                            <div className="text-center text-muted py-4 animate-pulse">Memuat riwayat...</div>
+                        ) : history.length === 0 ? (
+                            <div className="text-center text-muted py-4">Belum ada riwayat perubahan</div>
+                        ) : (
+                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                {history.map((entry, index) => (
+                                    <div key={entry.id} className="flex items-center gap-3 p-3 bg-background rounded-lg text-sm">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-muted">{formatRupiah(entry.old_balance)}</span>
+                                                <span className="text-muted">→</span>
+                                                <span className={`font-medium ${entry.new_balance > entry.old_balance ? 'text-success' : entry.new_balance < entry.old_balance ? 'text-danger' : 'text-muted'}`}>
+                                                    {formatRupiah(entry.new_balance)}
+                                                </span>
+                                            </div>
+                                            <div className="text-xs text-muted mt-1">
+                                                {formatTime(entry.created_at)}
+                                                {entry.note && <span className="ml-2">• {entry.note}</span>}
+                                            </div>
+                                        </div>
+                                        {index === 0 && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleUndo(entry)}
+                                                className="text-warning hover:bg-warning/10 shrink-0"
+                                            >
+                                                ↩ Undo
+                                            </Button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
-                </form>
+                </div>
             </Modal>
         </div>
     );
